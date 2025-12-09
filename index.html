@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Z-Shift Training Comparison - by Caith</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a24;
+      --border: #2a2a3a;
+      --text-primary: #e8e8f0;
+      --text-secondary: #8888a0;
+      --accent-shift1: #ff6b4a;
+      --accent-shift18: #4ecdc4;
+      --accent-1024-18: #a78bfa;
+      --accent-1024-3: #f472b6;
+      --accent-dataset: #fbbf24;
+      --bg-dataset: #1a1812;
+      --bg-dataset-card: #252218;
+      --border-dataset: #3d3a2a;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(ellipse at 20% 0%, rgba(255, 107, 74, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(78, 205, 196, 0.08) 0%, transparent 50%);
+    }
+
+    header {
+      padding: 2rem 1.5rem 1rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.shift1 { background: var(--accent-shift1); }
+    .legend-dot.shift18 { background: var(--accent-shift18); }
+    .legend-dot.shift1024-18 { background: var(--accent-1024-18); }
+    .legend-dot.shift1024-3 { background: var(--accent-1024-3); }
+
+    main {
+      max-width: 1800px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 1.5rem 0 1rem;
+      padding-left: 0.5rem;
+      border-left: 3px solid var(--accent-shift1);
+    }
+
+    .section-title.section-1024 {
+      border-left-color: var(--accent-1024-18);
+    }
+
+    .prompt-group {
+      margin-bottom: 2rem;
+    }
+
+    .prompt-header {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+    }
+
+    .epoch-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 4px;
+    }
+
+    .epoch-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      width: 24px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* Base model row - uses same structure as epoch rows */
+    .base-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .base-row .base-pair {
+      display: flex;
+      gap: 3px;
+      flex: 1;
+    }
+
+    .base-row .image-wrapper {
+      flex: 1;
+    }
+
+    .base-row .image-wrapper::before {
+      display: none;
+    }
+
+    .base-row .image-wrapper img {
+      border: 1px solid var(--border);
+    }
+
+    .base-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      opacity: 0.6;
+      width: 24px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .image-pair {
+      display: flex;
+      gap: 3px;
+      flex: 1;
+    }
+
+    .image-wrapper {
+      position: relative;
+      cursor: pointer;
+      border-radius: 3px;
+      overflow: hidden;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      flex: 1;
+    }
+
+    .image-wrapper:hover {
+      transform: scale(1.03);
+      z-index: 10;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .image-wrapper img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+    }
+
+    .image-wrapper::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .image-wrapper.shift1::before { background: var(--accent-shift1); }
+    .image-wrapper.shift18::before { background: var(--accent-shift18); }
+    .image-wrapper.shift1024-18::before { background: var(--accent-1024-18); }
+    .image-wrapper.shift1024-3::before { background: var(--accent-1024-3); }
+    .image-wrapper.dataset::before { background: var(--accent-dataset); }
+
+    /* 1024 section - two images side by side */
+    .section-1024-content .image-pair {
+      flex: 1;
+    }
+
+    /* Lightbox */
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      cursor: zoom-out;
+    }
+
+    .lightbox.active {
+      display: flex;
+    }
+
+    .lightbox img {
+      max-width: 95vw;
+      max-height: 95vh;
+      object-fit: contain;
+      border-radius: 4px;
+    }
+
+    .lightbox-info {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .lightbox-close {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      font-size: 2rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--bg-card);
+      transition: color 0.2s;
+    }
+
+    .lightbox-close:hover {
+      color: var(--text-primary);
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 600px) {
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Dataset section */
+    .dataset-section {
+      background: var(--bg-dataset);
+      border-top: 1px solid var(--border-dataset);
+      padding: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .dataset-section .section-title {
+      border-left-color: var(--accent-dataset);
+      color: var(--accent-dataset);
+    }
+
+    .dataset-section .section-subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+      opacity: 0.8;
+    }
+
+    .dataset-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+
+    .dataset-grid .image-wrapper::before {
+      background: var(--accent-dataset);
+    }
+
+    .dataset-grid .image-wrapper img {
+      aspect-ratio: 1;
+      object-fit: cover;
+    }
+
+    @media (max-width: 1200px) {
+      .dataset-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .dataset-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Config section */
+    .config-section {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+    }
+
+    .config-section .section-title {
+      border-left-color: var(--text-secondary);
+      margin-top: 0;
+    }
+
+    .config-content {
+      max-width: 800px;
+      margin: 0 auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.8;
+    }
+
+    .config-base {
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-primary);
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .config-changes {
+      margin-bottom: 1.5rem;
+    }
+
+    .config-changes h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+    }
+
+    .config-list {
+      list-style: none;
+      padding: 0;
+      color: var(--text-primary);
+    }
+
+    .config-list li {
+      padding: 0.3rem 0;
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .config-list li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: var(--accent-shift18);
+    }
+
+    .config-list .sub-list {
+      margin-left: 1rem;
+      margin-top: 0.3rem;
+      color: var(--text-secondary);
+    }
+
+    .config-list .sub-list li::before {
+      content: '–';
+      color: var(--text-secondary);
+    }
+
+    .config-note {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(167, 139, 250, 0.1);
+      border-left: 3px solid var(--accent-1024-18);
+      border-radius: 0 4px 4px 0;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+
+    .config-note strong {
+      color: var(--accent-1024-18);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Z-Shift Training Comparison</h1>
+    <p class="subtitle">LoRA training progression across epochs - by Caith</p>
+    <div class="legend">
+      <div class="legend-item">
+        <span class="legend-dot shift1"></span>
+        <span>512 Shift 1</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot shift18"></span>
+        <span>512 Shift 1.8</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot shift1024-18"></span>
+        <span>1024 Shift 1.8 (from Shift 1)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot shift1024-3"></span>
+        <span>1024 Shift 3 (from Shift 1)</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <h2 class="section-title">512px Training Comparison: Shift 1 vs 1.8</h2>
+    
+    <div class="comparison-grid" id="comparison-512"></div>
+
+    <h2 class="section-title section-1024">1024px Training Comparison: Shift 1.8 vs Shift 3</h2>
+    
+    <div class="comparison-grid section-1024-content" id="section-1024"></div>
+  </main>
+
+  <section class="dataset-section">
+    <h2 class="section-title">Dataset Excerpt</h2>
+    <p class="section-subtitle">Sample images from the training dataset (112 images total)</p>
+    <div class="dataset-grid" id="dataset-grid"></div>
+  </section>
+
+  <section class="config-section">
+    <h2 class="section-title">Training Configuration</h2>
+    <div class="config-content">
+      <div class="config-base">
+        Default Z Image Lora (16GB) settings loaded.
+      </div>
+      
+      <div class="config-changes">
+        <h3>Changes:</h3>
+        <ul class="config-list">
+          <li>Timestep Shift: 1 / 1.8 / 3</li>
+          <li>BF16 precision</li>
+          <li>Resolution: 512 / 1024</li>
+          <li>Text augmentation:
+            <ul class="sub-list">
+              <li>Tag shuffling enabled</li>
+              <li>Keep Tag Count: 1</li>
+              <li>Dropout mode: full, probability 0.2</li>
+            </ul>
+          </li>
+          <li>LoRA rank: 32</li>
+        </ul>
+      </div>
+
+      <div class="config-note">
+        <strong>Note:</strong> For the 1024px models, the epoch 40, 512 shift 1 model was loaded via "LoRA base model"
+      </div>
+    </div>
+  </section>
+
+  <div class="lightbox" id="lightbox">
+    <span class="lightbox-close">&times;</span>
+    <img src="" alt="Fullscreen view">
+    <div class="lightbox-info"></div>
+  </div>
+
+  <script>
+    const prompts = {
+      p01: 'juno',
+      p02: 'concept art of juno from behind, space helmet, white background',
+      p03: 'A photo of juno wearing a space helmet, holding a blaster. She is wearing a orange jacket with with "Teo Minh" and "mars" written on it.',
+      p04: 'concept art, overboots, left foot'
+    };
+
+    const epochs512 = ['e05', 'e10', 'e15', 'e20', 'e25', 'e30', 'e35', 'e40'];
+    const epochs1024 = ['e05', 'e10'];
+    const promptKeys = ['p01', 'p02', 'p03', 'p04'];
+
+    const fileNames = {
+      p01: 'juno',
+      p02: 'concept_art_of_juno_from_behin',
+      p03: 'A_photo_of_juno_wearing_a_spac',
+      p04: 'concept_art,_overboots,_left_f'
+    };
+
+    function createImagePath(folder, prompt, epoch) {
+      return `images/juno/${folder}/${prompt}_${epoch}_${fileNames[prompt]}.jpg`;
+    }
+
+    function createImageWrapper(src, type, prompt, epoch, folder) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `image-wrapper ${type}`;
+      wrapper.innerHTML = `<img src="${src}" alt="${prompts[prompt]} - ${epoch}" loading="lazy">`;
+      wrapper.dataset.src = src;
+      wrapper.dataset.info = `${folder} | ${prompt} | ${epoch} | ${prompts[prompt]}`;
+      wrapper.addEventListener('click', openLightbox);
+      return wrapper;
+    }
+
+    // Build 512 comparison
+    const comparison512 = document.getElementById('comparison-512');
+    
+    promptKeys.forEach(prompt => {
+      const group = document.createElement('div');
+      group.className = 'prompt-group';
+      
+      group.innerHTML = `
+        <div class="prompt-header">${prompts[prompt]}</div>
+      `;
+
+      // Base model row (e00 - no LoRA)
+      const baseRow = document.createElement('div');
+      baseRow.className = 'base-row';
+      baseRow.innerHTML = `<span class="base-label">00</span>`;
+      const basePair = document.createElement('div');
+      basePair.className = 'base-pair';
+      const baseSrc = createImagePath('512-shift1', prompt, 'e00');
+      const baseWrapper = createImageWrapper(baseSrc, 'base', prompt, 'e00', 'base model (no LoRA)');
+      basePair.appendChild(baseWrapper);
+      baseRow.appendChild(basePair);
+      group.appendChild(baseRow);
+
+      // Training epochs
+      epochs512.forEach(epoch => {
+        const row = document.createElement('div');
+        row.className = 'epoch-row';
+        
+        row.innerHTML = `<span class="epoch-label">${epoch.replace('e', '')}</span>`;
+        
+        const pair = document.createElement('div');
+        pair.className = 'image-pair';
+        
+        // shift1
+        const shift1Src = createImagePath('512-shift1', prompt, epoch);
+        pair.appendChild(createImageWrapper(shift1Src, 'shift1', prompt, epoch, '512-shift1'));
+        
+        // shift1.8
+        const shift18Src = createImagePath('512-shift1.8', prompt, epoch);
+        pair.appendChild(createImageWrapper(shift18Src, 'shift18', prompt, epoch, '512-shift1.8'));
+        
+        row.appendChild(pair);
+        group.appendChild(row);
+      });
+
+      comparison512.appendChild(group);
+    });
+
+    // Build 1024 section (comparing shift1.8 vs shift3)
+    const section1024 = document.getElementById('section-1024');
+    
+    promptKeys.forEach(prompt => {
+      const group = document.createElement('div');
+      group.className = 'prompt-group';
+      
+      group.innerHTML = `
+        <div class="prompt-header">${prompts[prompt]}</div>
+      `;
+
+      epochs1024.forEach(epoch => {
+        const row = document.createElement('div');
+        row.className = 'epoch-row';
+        
+        row.innerHTML = `<span class="epoch-label">${epoch.replace('e', '')}</span>`;
+        
+        const pair = document.createElement('div');
+        pair.className = 'image-pair';
+        
+        // 1024-shift1.8
+        const shift18Src = createImagePath('1024-shift1.8', prompt, epoch);
+        pair.appendChild(createImageWrapper(shift18Src, 'shift1024-18', prompt, epoch, '1024-shift1.8'));
+        
+        // 1024-shift3
+        const shift3Src = createImagePath('1024-shift3', prompt, epoch);
+        pair.appendChild(createImageWrapper(shift3Src, 'shift1024-3', prompt, epoch, '1024-shift3'));
+        
+        row.appendChild(pair);
+        group.appendChild(row);
+      });
+
+      section1024.appendChild(group);
+    });
+
+    // Build dataset excerpt section
+    const datasetGrid = document.getElementById('dataset-grid');
+    const datasetImages = [
+      { file: '__juno_overwatch_and_2_more__3495a521e4cd369ebb1635c409b1bddb.jpg', caption: 'concept art of juno, space helmet, grey gradient background, overboots' },
+      { file: '120691509_p0_master1200.jpg', caption: 'concept art of juno from behind, space helmet, white background' },
+      { file: '120691509_p1_master1200.jpg', caption: 'concept art of juno, space helmet, white background' },
+      { file: 'concept10.png', caption: 'concept art, blaster' },
+      { file: 'concept2.png', caption: 'concept art, juno' },
+      { file: 'concept5-leftShoe.png', caption: 'concept art, overboots, left foot' },
+      { file: 'dht3mkx-8d153320-2711-4004-9114-5da3364729e3.png', caption: 'ingame screenshot of juno, blaster, space helmet' },
+      { file: 'Overwatch_BGdWRiNVqz.jpg', caption: 'ingame screenshot, space helmet, juno, blaster, overboots' }
+    ];
+
+    datasetImages.forEach((img, index) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'image-wrapper dataset';
+      const src = `images/dataset/${img.file}`;
+      wrapper.innerHTML = `<img src="${src}" alt="${img.caption}" loading="lazy">`;
+      wrapper.dataset.src = src;
+      wrapper.dataset.info = `Dataset ${index + 1}/8 | ${img.caption}`;
+      wrapper.addEventListener('click', openLightbox);
+      datasetGrid.appendChild(wrapper);
+    });
+
+    // Lightbox functionality
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = lightbox.querySelector('img');
+    const lightboxInfo = lightbox.querySelector('.lightbox-info');
+    const lightboxClose = lightbox.querySelector('.lightbox-close');
+    let currentImageWrapper = null;
+
+    function openLightbox(e) {
+      const wrapper = e.currentTarget;
+      currentImageWrapper = wrapper;
+      lightboxImg.src = wrapper.dataset.src;
+      lightboxInfo.textContent = wrapper.dataset.info;
+      lightbox.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function showImage(wrapper) {
+      if (!wrapper) return;
+      currentImageWrapper = wrapper;
+      lightboxImg.src = wrapper.dataset.src;
+      lightboxInfo.textContent = wrapper.dataset.info;
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove('active');
+      document.body.style.overflow = '';
+      currentImageWrapper = null;
+    }
+
+    function navigateLightbox(direction) {
+      if (!currentImageWrapper || !lightbox.classList.contains('active')) return;
+      
+      const allWrappers = Array.from(document.querySelectorAll('.image-wrapper'));
+      const currentIndex = allWrappers.indexOf(currentImageWrapper);
+      if (currentIndex === -1) return;
+
+      // Check if we're in the dataset grid (simpler navigation)
+      const datasetGrid = currentImageWrapper.closest('.dataset-grid');
+      if (datasetGrid) {
+        const datasetWrappers = Array.from(datasetGrid.querySelectorAll('.image-wrapper'));
+        const idx = datasetWrappers.indexOf(currentImageWrapper);
+        let targetWrapper = null;
+        
+        if (direction === 'left' && idx > 0) {
+          targetWrapper = datasetWrappers[idx - 1];
+        } else if (direction === 'right' && idx < datasetWrappers.length - 1) {
+          targetWrapper = datasetWrappers[idx + 1];
+        }
+        
+        if (targetWrapper) showImage(targetWrapper);
+        return;
+      }
+
+      // Find the grid position of current image
+      const currentRow = currentImageWrapper.closest('.epoch-row, .base-row');
+      const currentGroup = currentImageWrapper.closest('.prompt-group');
+      const currentSection = currentImageWrapper.closest('.comparison-grid');
+      
+      let targetWrapper = null;
+
+      if (direction === 'left' || direction === 'right') {
+        // Navigate within the same row
+        const rowWrappers = currentRow ? Array.from(currentRow.querySelectorAll('.image-wrapper')) : [currentImageWrapper];
+        const rowIndex = rowWrappers.indexOf(currentImageWrapper);
+        
+        if (direction === 'left') {
+          if (rowIndex > 0) {
+            targetWrapper = rowWrappers[rowIndex - 1];
+          } else {
+            // Go to previous row's last image
+            const allRows = Array.from(currentSection.querySelectorAll('.epoch-row, .base-row'));
+            const currentRowIndex = allRows.indexOf(currentRow);
+            if (currentRowIndex > 0) {
+              const prevRowWrappers = allRows[currentRowIndex - 1].querySelectorAll('.image-wrapper');
+              targetWrapper = prevRowWrappers[prevRowWrappers.length - 1];
+            }
+          }
+        } else {
+          if (rowIndex < rowWrappers.length - 1) {
+            targetWrapper = rowWrappers[rowIndex + 1];
+          } else {
+            // Go to next row's first image
+            const allRows = Array.from(currentSection.querySelectorAll('.epoch-row, .base-row'));
+            const currentRowIndex = allRows.indexOf(currentRow);
+            if (currentRowIndex < allRows.length - 1) {
+              targetWrapper = allRows[currentRowIndex + 1].querySelector('.image-wrapper');
+            }
+          }
+        }
+      } else if (direction === 'up' || direction === 'down') {
+        // Navigate between rows, keeping same column position
+        const rowWrappers = currentRow ? Array.from(currentRow.querySelectorAll('.image-wrapper')) : [currentImageWrapper];
+        const colIndex = rowWrappers.indexOf(currentImageWrapper);
+        
+        const allRows = Array.from(currentSection.querySelectorAll('.epoch-row, .base-row'));
+        const currentRowIndex = allRows.indexOf(currentRow);
+        
+        let targetRowIndex = direction === 'up' ? currentRowIndex - 1 : currentRowIndex + 1;
+        
+        if (targetRowIndex >= 0 && targetRowIndex < allRows.length) {
+          const targetRowWrappers = allRows[targetRowIndex].querySelectorAll('.image-wrapper');
+          // Try to keep same column, or take last available
+          targetWrapper = targetRowWrappers[Math.min(colIndex, targetRowWrappers.length - 1)];
+        }
+      }
+
+      if (targetWrapper) {
+        showImage(targetWrapper);
+      }
+    }
+
+    lightbox.addEventListener('click', closeLightbox);
+    lightboxClose.addEventListener('click', closeLightbox);
+    lightboxImg.addEventListener('click', (e) => e.stopPropagation());
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (lightbox.classList.contains('active')) {
+        if (e.key === 'ArrowLeft') { e.preventDefault(); navigateLightbox('left'); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); navigateLightbox('right'); }
+        if (e.key === 'ArrowUp') { e.preventDefault(); navigateLightbox('up'); }
+        if (e.key === 'ArrowDown') { e.preventDefault(); navigateLightbox('down'); }
+      }
+    });
+
+    // Equalize prompt header heights within each section
+    function equalizeHeights(selector) {
+      const headers = document.querySelectorAll(selector);
+      let maxHeight = 0;
+      headers.forEach(h => {
+        h.style.height = 'auto';
+        maxHeight = Math.max(maxHeight, h.offsetHeight);
+      });
+      headers.forEach(h => h.style.height = maxHeight + 'px');
+    }
+
+    function equalizeAll() {
+      equalizeHeights('#comparison-512 .prompt-header');
+      equalizeHeights('#section-1024 .prompt-header');
+    }
+
+    equalizeAll();
+    window.addEventListener('resize', equalizeAll);
+  </script>
+</body>
+</html>
+
